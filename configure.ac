@@ -4,8 +4,8 @@ dnl First, define all of the version numbers up front.
 dnl In particular, this allows the version macro to be used in AC_INIT
 
 dnl These first two version numbers are updated automatically on each release.
-m4_define([LIBARCHIVE_VERSION_S],[3.6.3dev])
-m4_define([LIBARCHIVE_VERSION_N],[3006003])
+m4_define([LIBARCHIVE_VERSION_S],[3.7.1dev])
+m4_define([LIBARCHIVE_VERSION_N],[3007001])
 
 dnl bsdtar and bsdcpio versioning tracks libarchive
 m4_define([BSDTAR_VERSION_S],LIBARCHIVE_VERSION_S())
@@ -482,6 +482,19 @@ if test "x$with_lzma" != "xno"; then
   if test "x$ac_cv_lzma_has_mt" != xno; then
 	  AC_DEFINE([HAVE_LZMA_STREAM_ENCODER_MT], [1], [Define to 1 if you have the `lzma_stream_encoder_mt' function.])
   fi
+
+  AC_CACHE_CHECK(
+    [whether we have ARM64 filter support in lzma],
+    ac_cv_lzma_has_arm64,
+    [AC_LINK_IFELSE([
+      AC_LANG_PROGRAM([[#include <lzma.h>]
+                       [#ifndef LZMA_FILTER_ARM64]
+                       [#error unsupported]
+                       [#endif]])],
+      [ac_cv_lzma_has_arm64=yes], [ac_cv_lzma_has_arm64=no])])
+  if test "x$ac_cv_lzma_has_arm64" != xno; then
+	  AC_DEFINE([HAVE_LZMA_FILTER_ARM64], [1], [Define to 1 if you have the `LZMA_FILTER_ARM64' macro.])
+  fi
 fi
 
 AC_ARG_WITH([lzo2],
@@ -729,7 +742,7 @@ AC_CHECK_FUNCS([arc4random_buf chflags chown chroot ctime_r])
 AC_CHECK_FUNCS([fchdir fchflags fchmod fchown fcntl fdopendir fnmatch fork])
 AC_CHECK_FUNCS([fstat fstatat fstatfs fstatvfs ftruncate])
 AC_CHECK_FUNCS([futimens futimes futimesat])
-AC_CHECK_FUNCS([geteuid getpid getgrgid_r getgrnam_r])
+AC_CHECK_FUNCS([geteuid getline getpid getgrgid_r getgrnam_r])
 AC_CHECK_FUNCS([getpwnam_r getpwuid_r getvfsbyname gmtime_r])
 AC_CHECK_FUNCS([lchflags lchmod lchown link linkat localtime_r lstat lutimes])
 AC_CHECK_FUNCS([mbrtowc memmove memset])
