@@ -76,6 +76,9 @@
 #include <sys/time.h>
 #endif
 #endif
+#ifdef HAVE_GETOPT_OPTRESET
+#include <getopt.h>
+#endif
 
 #include "bsdunzip.h"
 #include "passphrase.h"
@@ -1227,10 +1230,8 @@ main(int argc, char *argv[])
 	 */
 	nopts = getopts(argc, argv);
 
-	if (version_opt == 1) {
+	if (version_opt == 1)
 		version();
-		exit(EXIT_SUCCESS);
-	}
 
 	/*
 	 * When more of the zipinfo mode options are implemented, this
