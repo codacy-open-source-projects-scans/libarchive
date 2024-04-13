@@ -4,8 +4,8 @@ dnl First, define all of the version numbers up front.
 dnl In particular, this allows the version macro to be used in AC_INIT
 
 dnl These first two version numbers are updated automatically on each release.
-m4_define([LIBARCHIVE_VERSION_S],[3.7.3dev])
-m4_define([LIBARCHIVE_VERSION_N],[3007003])
+m4_define([LIBARCHIVE_VERSION_S],[3.7.4dev])
+m4_define([LIBARCHIVE_VERSION_N],[3007004])
 
 dnl bsdtar and bsdcpio versioning tracks libarchive
 m4_define([BSDTAR_VERSION_S],LIBARCHIVE_VERSION_S())
@@ -461,7 +461,7 @@ if test "x$with_zstd" != "xno"; then
   AC_CHECK_HEADERS([zstd.h])
   AC_CHECK_LIB(zstd,ZSTD_decompressStream)
   AC_CHECK_LIB(zstd,ZSTD_compressStream,
-    AC_DEFINE([HAVE_LIBZSTD_COMPRESSOR], [1], [Define to 1 if you have the `zstd' library (-lzstd) with compression support.]))
+    AC_DEFINE([HAVE_ZSTD_compressStream], [1], [Define to 1 if you have the `zstd' library (-lzstd) with compression support.]))
 fi
 
 AC_ARG_WITH([lzma],
@@ -662,7 +662,7 @@ AC_LINK_IFELSE(
         DEAD_CODE_REMOVAL="";])
 LDFLAGS=$save_LDFLAGS
 
-if test "$DEAD_CODE_REMOVAL" == ""; then
+if test "$DEAD_CODE_REMOVAL" = ""; then
     # Macos linkers have a -dead_strip flag, which is similar to --gc-sections.
     save_LDFLAGS=$LDFLAGS
     LDFLAGS="$LDFLAGS -Wl,-dead_strip"
