@@ -1766,6 +1766,10 @@ free_decompression(struct archive_read *a, struct _7zip *zip)
 		zip->stream_valid = 0;
 	}
 #endif
+#ifdef HAVE_ZSTD_H
+	if (zip->zstdstream_valid)
+		ZSTD_freeDStream(zip->zstd_dstream);
+#endif
 	if (zip->ppmd7_valid) {
 		__archive_ppmd7_functions.Ppmd7_Free(
 			&zip->ppmd7_context);
@@ -3010,7 +3014,7 @@ slurp_central_directory(struct archive_read *a, struct _7zip *zip,
 	/* CRC check. */
 	if (crc32(0, (const unsigned char *)p + 12, 20)
 	    != archive_le32dec(p + 8)) {
-#ifdef DONT_FAIL_ON_CRC_ERROR
+#ifndef DONT_FAIL_ON_CRC_ERROR
 		archive_set_error(&a->archive, -1, "Header CRC error");
 		return (ARCHIVE_FATAL);
 #endif
