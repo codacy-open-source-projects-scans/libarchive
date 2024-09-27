@@ -123,8 +123,6 @@ struct tar {
 	struct archive_string	 entry_uname;
 	struct archive_string	 entry_gname;
 	struct archive_string	 entry_linkpath;
-	struct archive_string	 longname;
-	struct archive_string	 pax_global;
 	struct archive_string	 line;
 	int			 pax_hdrcharset_utf8;
 	int64_t			 entry_bytes_remaining;
@@ -296,9 +294,8 @@ archive_read_format_tar_cleanup(struct archive_read *a)
 	archive_string_free(&tar->entry_pathname_override);
 	archive_string_free(&tar->entry_uname);
 	archive_string_free(&tar->entry_gname);
+	archive_string_free(&tar->entry_linkpath);
 	archive_string_free(&tar->line);
-	archive_string_free(&tar->pax_global);
-	archive_string_free(&tar->longname);
 	archive_string_free(&tar->localname);
 	free(tar);
 	(a->format->data) = NULL;
@@ -726,6 +723,7 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 	archive_string_empty(&(tar->entry_pathname));
 	archive_string_empty(&(tar->entry_pathname_override));
 	archive_string_empty(&(tar->entry_uname));
+	archive_string_empty(&tar->entry_linkpath);
 
 	/* Ensure format is set. */
 	if (a->archive.archive_format_name == NULL) {
@@ -1176,13 +1174,16 @@ header_gnu_longname(struct archive_read *a, struct tar *tar,
     struct archive_entry *entry, const void *h, size_t *unconsumed)
 {
 	int err;
+	struct archive_string longname;
 
-	err = read_body_to_string(a, tar, &(tar->longname), h, unconsumed);
-	if (err != ARCHIVE_OK)
-		return (err);
-	if (archive_entry_copy_pathname_l(entry, tar->longname.s,
-	    archive_strlen(&(tar->longname)), tar->sconv) != 0)
-		err = set_conversion_failed_error(a, tar->sconv, "Pathname");
+	archive_string_init(&longname);
+	err = read_body_to_string(a, tar, &longname, h, unconsumed);
+	if (err == ARCHIVE_OK) {
+		if (archive_entry_copy_pathname_l(entry, longname.s,
+		    archive_strlen(&longname), tar->sconv) != 0)
+			err = set_conversion_failed_error(a, tar->sconv, "Pathname");
+	}
+	archive_string_free(&longname);
 	return (err);
 }
 
@@ -1935,6 +1936,7 @@ header_pax_extension(struct archive_read *a, struct tar *tar,
 		*unconsumed += 1;
 		tar_flush_unconsumed(a, unconsumed);
 	}
+	archive_string_free(&attr_name);
 	*unconsumed += ext_size + ext_padding;
 
 	/*
