@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2007 Tim Kientzle
+ * Copyright (c) 2003-2024 Tim Kientzle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,39 +24,27 @@
  */
 #include "test.h"
 
-DEFINE_TEST(test_option_d)
+DEFINE_TEST(test_read_filter_gzip_recursive)
 {
-	int r;
+	const char *name = "test_read_filter_gzip_recursive.gz";
+	struct archive *a;
 
-	/*
-	 * Create a file in a directory.
-	 */
-	assertMakeDir("dir", 0755);
-	assertMakeFile("dir/file", 0644, NULL);
+	if (!canGzip()) {
+		skipping("gzip not available");
+		return;
+	}
 
-	/* Create an archive. */
-	r = systemf("echo dir/file | %s -o > archive.cpio 2>archive.err", testprog);
-	assertEqualInt(r, 0);
-	assertTextFileContents("1 block\n", "archive.err");
-	assertFileSize("archive.cpio", 512);
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	extract_reference_file(name);
+	assertEqualIntA(a, ARCHIVE_FATAL,
+	    archive_read_open_filename(a, name, 200));
 
-	/* Dearchive without -d, this should fail. */
-	assertMakeDir("without-d", 0755);
-	assertChdir("without-d");
-	r = systemf("%s -i < ../archive.cpio >out 2>err", testprog);
-	assert(r != 0);
-	assertEmptyFile("out");
-	/* And the file should not be restored. */
-	assertFileNotExists("dir/file");
+	/* Verify that the filter detection worked. */
+	assertEqualInt(archive_filter_code(a, 0), ARCHIVE_FILTER_GZIP);
+	assertEqualString(archive_filter_name(a, 0), "gzip");
 
-	/* Dearchive with -d, this should succeed. */
-	assertChdir("..");
-	assertMakeDir("with-d", 0755);
-	assertChdir("with-d");
-	r = systemf("%s -id < ../archive.cpio >out 2>err", testprog);
-	assertEqualInt(r, 0);
-	assertEmptyFile("out");
-	assertTextFileContents("1 block\n", "err");
-	/* And the file should be restored. */
-	assertFileExists("dir/file");
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
