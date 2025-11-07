@@ -70,6 +70,7 @@
 #include "archive_hmac_private.h"
 #include "archive_private.h"
 #include "archive_random_private.h"
+#include "archive_time_private.h"
 #include "archive_write_private.h"
 #include "archive_write_set_format_private.h"
 
@@ -234,7 +235,6 @@ static int archive_write_zip_header(struct archive_write *,
 	      struct archive_entry *);
 static int archive_write_zip_options(struct archive_write *,
 	      const char *, const char *);
-static unsigned int dos_time(const time_t);
 static size_t path_length(struct archive_entry *);
 static int write_path(struct archive_entry *, struct archive_write *);
 static void copy_path(struct archive_entry *, unsigned char *);
@@ -453,7 +453,8 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 			zip->threads = sysconf(_SC_NPROCESSORS_ONLN);
 #elif !defined(__CYGWIN__) && defined(_WIN32_WINNT) && _WIN32_WINNT >= 0x0601
 			/* Windows 7 and up */
-			zip->threads = GetActiveProcessorCount(ALL_PROCESSOR_GROUPS);
+			DWORD activeProcs = GetActiveProcessorCount(ALL_PROCESSOR_GROUPS);
+			zip->threads = activeProcs <= SHRT_MAX ? (short)activeProcs : SHRT_MAX;
 #else
 			zip->threads = 1;
 #endif
@@ -807,7 +808,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		__archive_write_entry_filetype_unsupported(
 		    &a->archive, entry, "zip");
 		return ARCHIVE_FAILED;
-	};
+	}
 
 	/* If we're not using Zip64, reject large files. */
 	if (zip->flags & ZIP_FLAG_AVOID_ZIP64) {
@@ -1126,7 +1127,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	else
 		archive_le16enc(local_header + 8, zip->entry_compression);
 	archive_le32enc(local_header + 10,
-		dos_time(archive_entry_mtime(zip->entry)));
+		unix_to_dos(archive_entry_mtime(zip->entry)));
 	if ((zip->entry_flags & ZIP_ENTRY_FLAG_LENGTH_AT_END) == 0) {
 		archive_le32enc(local_header + 14, zip->entry_crc32);
 		archive_le32enc(local_header + 18, (uint32_t)zip->entry_compressed_size);
@@ -1157,7 +1158,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	else
 		archive_le16enc(zip->file_header + 10, zip->entry_compression);
 	archive_le32enc(zip->file_header + 12,
-		dos_time(archive_entry_mtime(zip->entry)));
+		unix_to_dos(archive_entry_mtime(zip->entry)));
 	archive_le16enc(zip->file_header + 28, (uint16_t)filename_length);
 	/* Following Info-Zip, store mode in the "external attributes" field. */
 	archive_le32enc(zip->file_header + 38,
@@ -1365,8 +1366,8 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 			? ZSTD_minCLevel() // ZSTD_minCLevel is negative !
 			: (zip->compression_level - 1) * ZSTD_maxCLevel() / 8;
 		zip->stream.zstd.context = ZSTD_createCStream();
-		ret = ZSTD_initCStream(zip->stream.zstd.context, zstd_compression_level);
-		if (ZSTD_isError(ret)) {
+		size_t zret = ZSTD_initCStream(zip->stream.zstd.context, zstd_compression_level);
+		if (ZSTD_isError(zret)) {
 			archive_set_error(&a->archive, ENOMEM,
 			    "Can't init zstd compressor");
 			return (ARCHIVE_FATAL);
@@ -1598,9 +1599,9 @@ archive_write_zip_data(struct archive_write *a, const void *buff, size_t s)
 		zip->stream.zstd.in.size = s;
 		zip->stream.zstd.in.pos = 0;
 		do {
-			ret = ZSTD_compressStream(zip->stream.zstd.context,
+			size_t zret = ZSTD_compressStream(zip->stream.zstd.context,
 				&zip->stream.zstd.out, &zip->stream.zstd.in);
-			if (ZSTD_isError(ret))
+			if (ZSTD_isError(zret))
 				return (ARCHIVE_FATAL);
 			if (zip->stream.zstd.out.pos == zip->stream.zstd.out.size) {
 				if (zip->tctx_valid) {
@@ -1822,7 +1823,9 @@ archive_write_zip_finish_entry(struct archive_write *a)
 {
 	struct zip *zip = a->format_data;
 	int ret;
+#if defined(HAVE_BZLIB_H) || (defined(HAVE_ZSTD_H) && HAVE_ZSTD_compressStream) || HAVE_LZMA_H
 	char finishing;
+#endif
 
 	switch (zip->entry_compression) {
 #ifdef HAVE_ZLIB_H
@@ -1853,7 +1856,10 @@ archive_write_zip_finish_entry(struct archive_write *a)
 			}
 			ret = __archive_write_output(a, zip->buf, remainder);
 			if (ret != ARCHIVE_OK)
+			{
+				deflateEnd(&zip->stream.deflate);
 				return (ret);
+			}
 			zip->entry_compressed_written += remainder;
 			zip->written_bytes += remainder;
 			zip->stream.deflate.next_out = zip->buf;
@@ -1895,7 +1901,10 @@ archive_write_zip_finish_entry(struct archive_write *a)
 			}
 			ret = __archive_write_output(a, zip->buf, remainder);
 			if (ret != ARCHIVE_OK)
+			{
+				BZ2_bzCompressEnd(&zip->stream.bzip2);
 				return (ret);
+			}
 			zip->entry_compressed_written += remainder;
 			zip->written_bytes += remainder;
 			zip->stream.bzip2.next_out = (char*)zip->buf;
@@ -1912,10 +1921,10 @@ archive_write_zip_finish_entry(struct archive_write *a)
 		do {
 			size_t remainder;
 
-			ret = ZSTD_endStream(zip->stream.zstd.context, &zip->stream.zstd.out);
-			if (ret == 0)
+			size_t zret = ZSTD_endStream(zip->stream.zstd.context, &zip->stream.zstd.out);
+			if (zret == 0)
 				finishing = 0;
-			else if (ZSTD_isError(ret))
+			else if (ZSTD_isError(zret))
 				return (ARCHIVE_FATAL);
 			remainder = zip->len_buf - (zip->stream.zstd.out.size - zip->stream.zstd.out.pos);
 			if (zip->tctx_valid) {
@@ -1937,13 +1946,17 @@ archive_write_zip_finish_entry(struct archive_write *a)
 			}
 			ret = __archive_write_output(a, zip->buf, remainder);
 			if (ret != ARCHIVE_OK)
+			{
+				ZSTD_freeCStream(zip->stream.zstd.context);
 				return (ret);
+			}
 			zip->entry_compressed_written += remainder;
 			zip->written_bytes += remainder;
-			zip->stream.zstd.out.dst = zip->buf;
 			if (zip->stream.zstd.out.pos != zip->stream.zstd.out.size)
 				finishing = 0;
+			zip->stream.zstd.out.dst = zip->buf;
 			zip->stream.zstd.out.size = zip->len_buf;
+			zip->stream.zstd.out.pos = 0;
 		} while (finishing);
 		ZSTD_freeCStream(zip->stream.zstd.context);
 		break;
@@ -1981,7 +1994,10 @@ archive_write_zip_finish_entry(struct archive_write *a)
 			}
 			ret = __archive_write_output(a, zip->buf, remainder);
 			if (ret != ARCHIVE_OK)
+			{
+				lzma_end(&zip->stream.lzma.context);
 				return (ret);
+			}
 			zip->entry_compressed_written += remainder;
 			zip->written_bytes += remainder;
 			zip->stream.lzma.context.next_out = zip->buf;
@@ -2224,44 +2240,6 @@ archive_write_zip_free(struct archive_write *a)
 	return (ARCHIVE_OK);
 }
 
-/* Convert into MSDOS-style date/time. */
-static unsigned int
-dos_time(const time_t unix_time)
-{
-	struct tm *t;
-	unsigned int dt;
-#if defined(HAVE_LOCALTIME_R) || defined(HAVE_LOCALTIME_S)
-	struct tm tmbuf;
-#endif
-
-#if defined(HAVE_LOCALTIME_S)
-	t = localtime_s(&tmbuf, &unix_time) ? NULL : &tmbuf;
-#elif defined(HAVE_LOCALTIME_R)
-	t = localtime_r(&unix_time, &tmbuf);
-#else
-	t = localtime(&unix_time);
-#endif
-
-	/* MSDOS-style date/time is only between 1980-01-01 and 2107-12-31 */
-	if (t->tm_year < 1980 - 1900)
-		/* Set minimum date/time '1980-01-01 00:00:00'. */
-		dt = 0x00210000U;
-	else if (t->tm_year > 2107 - 1900)
-		/* Set maximum date/time '2107-12-31 23:59:58'. */
-		dt = 0xff9fbf7dU;
-	else {
-		dt = 0;
-		dt += ((t->tm_year - 80) & 0x7f) << 9;
-		dt += ((t->tm_mon + 1) & 0x0f) << 5;
-		dt += (t->tm_mday & 0x1f);
-		dt <<= 16;
-		dt += (t->tm_hour & 0x1f) << 11;
-		dt += (t->tm_min & 0x3f) << 5;
-		dt += (t->tm_sec & 0x3e) >> 1; /* Only counting every 2 seconds. */
-	}
-	return dt;
-}
-
 static size_t
 path_length(struct archive_entry *entry)
 {
@@ -2469,13 +2447,19 @@ init_winzip_aes_encryption(struct archive_write *a)
 		    "Can't generate random number for encryption");
 		return (ARCHIVE_FATAL);
 	}
-	archive_pbkdf2_sha1(passphrase, strlen(passphrase),
+	ret = archive_pbkdf2_sha1(passphrase, strlen(passphrase),
 	    salt, salt_len, 1000, derived_key, key_len * 2 + 2);
+	if (ret != 0) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    ret == CRYPTOR_STUB_FUNCTION ? "Encryption is unsupported due to "
+			"lack of crypto library" : "Failed to process passphrase");
+		return (ARCHIVE_FAILED);
+	}
 
 	ret = archive_encrypto_aes_ctr_init(&zip->cctx, derived_key, key_len);
 	if (ret != 0) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Decryption is unsupported due to lack of crypto library");
+		    "Failed to initialize AES CTR mode");
 		return (ARCHIVE_FAILED);
 	}
 	ret = archive_hmac_sha1_init(&zip->hctx, derived_key + key_len,

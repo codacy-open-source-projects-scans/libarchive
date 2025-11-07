@@ -25,7 +25,7 @@
 #define	REG_BASIC 0
 #endif
 
-#include "err.h"
+#include "lafe_err.h"
 
 struct subst_rule {
 	struct subst_rule *next;
@@ -229,6 +229,7 @@ apply_substitution(struct bsdtar *bsdtar, const char *name, char **result,
 
 		if (rule->from_begin && *result) {
 			realloc_strcat(result, name);
+			if (buffer) buffer[0] = 0;
 			realloc_strcat(&buffer, *result);
 			name = buffer;
 			(*result)[0] = 0;

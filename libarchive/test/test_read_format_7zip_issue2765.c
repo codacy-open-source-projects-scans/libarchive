@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2015 Tim Kientzle
+ * Copyright (c) 2025 Tim Kientzle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,16 +22,30 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include "test.h"
 
-#ifndef ARCHIVE_GETDATE_H_INCLUDED
-#define ARCHIVE_GETDATE_H_INCLUDED
+/*
+ * Sample file from Github Issue #2765
+ */
+DEFINE_TEST(test_read_format_7zip_issue2765)
+{
+	const char *refname = "test_read_format_7zip_issue2765.7z";
+	struct archive_entry *ae;
+	struct archive *a;
 
-#ifndef __LIBARCHIVE_BUILD
-#error This header is only to be used internally to libarchive.
-#endif
+	extract_reference_file(refname);
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_FATAL,
+	    archive_read_open_filename(a, refname, 10240));
 
-#include <time.h>
+	/* End of archive. */
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
 
-time_t __archive_get_date(time_t now, const char *);
+	assertEqualInt(0, archive_file_count(a));
 
-#endif
+	/* Close the archive. */
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}

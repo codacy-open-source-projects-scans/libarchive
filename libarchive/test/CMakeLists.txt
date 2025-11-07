@@ -21,10 +21,10 @@ IF(ENABLE_TEST)
     test_archive_clear_error.c
     test_archive_cmdline.c
     test_archive_digest.c
-    test_archive_getdate.c
     test_archive_match_owner.c
     test_archive_match_path.c
     test_archive_match_time.c
+    test_archive_parse_date.c
     test_archive_pathmatch.c
     test_archive_read.c
     test_archive_read_add_passphrase.c
@@ -108,6 +108,7 @@ IF(ENABLE_TEST)
     test_read_format_7zip_encryption_data.c
     test_read_format_7zip_encryption_header.c
     test_read_format_7zip_encryption_partially.c
+    test_read_format_7zip_issue2765.c
     test_read_format_7zip_malformed.c
     test_read_format_7zip_packinfo_digests.c
     test_read_format_ar.c
@@ -133,7 +134,9 @@ IF(ENABLE_TEST)
     test_read_format_gtar_filename.c
     test_read_format_gtar_gz.c
     test_read_format_gtar_lzma.c
+    test_read_format_gtar_redundant_L.c
     test_read_format_gtar_sparse.c
+    test_read_format_gtar_sparse_length.c
     test_read_format_gtar_sparse_skip_entry.c
     test_read_format_huge_rpm.c
     test_read_format_iso_Z.c
@@ -162,16 +165,21 @@ IF(ENABLE_TEST)
     test_read_format_rar_encryption_partially.c
     test_read_format_rar_invalid1.c
     test_read_format_rar_filter.c
+    test_read_format_rar_overflow.c
     test_read_format_rar5.c
     test_read_format_raw.c
     test_read_format_tar.c
+    test_read_format_tar_V_negative_size.c
     test_read_format_tar_concatenated.c
     test_read_format_tar_empty_filename.c
     test_read_format_tar_empty_with_gnulabel.c
     test_read_format_tar_empty_pax.c
     test_read_format_tar_filename.c
     test_read_format_tar_invalid_pax_size.c
+    test_read_format_tar_mac_metadata.c
+    test_read_format_tar_pax_g_large.c
     test_read_format_tar_pax_large_attr.c
+    test_read_format_tar_pax_negative_time.c
     test_read_format_tbz.c
     test_read_format_tgz.c
     test_read_format_tlz.c
@@ -204,6 +212,7 @@ IF(ENABLE_TEST)
     test_read_format_zip_zip64.c
     test_read_format_zip_with_invalid_traditional_eocd.c
     test_read_large.c
+    test_read_pax_empty_val_no_nl.c
     test_read_pax_xattr_rht_security_selinux.c
     test_read_pax_xattr_schily.c
     test_read_pax_truncated.c
@@ -272,6 +281,7 @@ IF(ENABLE_TEST)
     test_write_format_mtree_classic_indent.c
     test_write_format_mtree_fflags.c
     test_write_format_mtree_no_separator.c
+    test_write_format_mtree_preset_digests.c
     test_write_format_mtree_quoted_filename.c
     test_write_format_pax.c
     test_write_format_raw.c

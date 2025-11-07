@@ -7,35 +7,6 @@
 #ifdef HAVE_ZSTD_H
 #include <zstd.h>
 
-static unsigned long
-bitcrc32(unsigned long c, const void *_p, size_t s)
-{
-	/* This is a drop-in replacement for crc32() from zlib, given that
-	 * libzstd doesn't use CRC32 in the first place, let alone has a
-	 * function for it. Libarchive should be able to correctly generate
-	 * ZSTD-compressed zip archives (including correct CRCs) even when
-	 * zlib is unavailable, and this function helps us verify that. Yes,
-	 * this is very, very slow and unsuitable for production use, but
-	 * it's very, very obviously correct, compact, and works well for
-	 * this particular usage. Libarchive internally uses a much more
-	 * efficient implementation when zlib is unavailable */
-	const unsigned char *p = _p;
-	int bitctr;
-
-	if (p == NULL)
-		return (0);
-
-	for (; s > 0; --s) {
-		c ^= *p++;
-		for (bitctr = 8; bitctr > 0; --bitctr) {
-			if (c & 1) c = (c >> 1);
-			else	   c = (c >> 1) ^ 0xedb88320;
-			c ^= 0x80000000;
-		}
-	}
-	return (c);
-}
-
 /* File data */
 static const char file_name[] = "file";
 static const char file_data1[] = {'~', 'Z', '`', '^', 'Y', 'X', 'N', 'W', 'V', 'G', 'H', 'I', 'J'};
@@ -130,7 +101,7 @@ static void verify_zstd_contents(const char *buff, size_t used)
 	assertEqualInt(i2le(p + 6), 0);
 	failure("All central dir entries are on this disk");
 	assertEqualInt(i2le(p + 8), i2le(p + 10));
-	failure("CD start (%d) + CD length (%d) should == archive size - 22",
+	failure("CD start (%u) + CD length (%u) should == archive size - 22",
 	    i4le(p + 12), i4le(p + 16));
 	assertEqualInt(i4le(p + 12) + i4le(p + 16), used - 22);
 	failure("no zip comment");
@@ -138,7 +109,7 @@ static void verify_zstd_contents(const char *buff, size_t used)
 
 	/* Get address of first entry in central directory. */
 	p = buff + i4le(buffend - 6);
-	failure("Central file record at offset %d should begin with"
+	failure("Central file record at offset %u should begin with"
 	    " PK\\001\\002 signature",
 	    i4le(buffend - 10));
 

@@ -14,6 +14,7 @@ IF(ENABLE_TAR AND ENABLE_TEST)
     test_0.c
     test_basic.c
     test_copy.c
+    test_crlf_mtree.c
     test_empty_mtree.c
     test_extract_tar_Z.c
     test_extract_tar_bz2.c
@@ -29,6 +30,7 @@ IF(ENABLE_TAR AND ENABLE_TEST)
     test_format_newc.c
     test_help.c
     test_leading_slash.c
+    test_list_item.c
     test_missing_file.c
     test_option_C_upper.c
     test_option_C_mtree.c
@@ -57,6 +59,7 @@ IF(ENABLE_TAR AND ENABLE_TEST)
     test_option_lz4.c
     test_option_lzma.c
     test_option_lzop.c
+    test_option_mtime.c
     test_option_n.c
     test_option_newer_than.c
     test_option_nodump.c
