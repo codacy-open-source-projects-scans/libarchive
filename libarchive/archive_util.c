@@ -41,14 +41,6 @@
 #ifdef HAVE_STRING_H
 #include <string.h>
 #endif
-#if defined(_WIN32) && !defined(__CYGWIN__)
-#include <bcrypt.h>
-
-/* Common in other bcrypt implementations, but missing from VS2008. */
-#ifndef BCRYPT_SUCCESS
-#define BCRYPT_SUCCESS(r) ((NTSTATUS)(r) == STATUS_SUCCESS)
-#endif
-#endif
 #ifdef HAVE_ZLIB_H
 #include <zlib.h>
 #endif
@@ -104,8 +96,7 @@ archive_errno(struct archive *a)
 const char *
 archive_error_string(struct archive *a)
 {
-
-	if (a->error != NULL  &&  *a->error != '\0')
+	if (a->error != NULL && *a->error != '\0')
 		return (a->error);
 	else
 		return (NULL);
@@ -244,7 +235,6 @@ __archive_mktempx(const char *tmpdir, wchar_t *template)
 	DWORD attr;
 	wchar_t *xp, *ep;
 	int fd;
-	BCRYPT_ALG_HANDLE hAlg = NULL;
 	fd = -1;
 	ws = NULL;
 	archive_string_init(&temp_name);
@@ -252,22 +242,36 @@ __archive_mktempx(const char *tmpdir, wchar_t *template)
 	if (template == NULL) {
 		/* Get a temporary directory. */
 		if (tmpdir == NULL) {
-			size_t l;
-			wchar_t *tmp;
+			wchar_t buf[MAX_PATH + 1];
+			wchar_t *p = buf, *buf2 = NULL;
+			size_t l, s;
 
-			l = GetTempPathW(0, NULL);
+			s = MAX_PATH + 1;
+			l = GetTempPathW((DWORD)s, buf);
 			if (l == 0) {
 				la_dosmaperr(GetLastError());
 				goto exit_tmpfile;
 			}
-			tmp = malloc(l*sizeof(wchar_t));
-			if (tmp == NULL) {
-				errno = ENOMEM;
-				goto exit_tmpfile;
+			while (l > s) {
+				wchar_t *tmp;
+
+				s = l;
+				tmp = realloc(buf2, s * sizeof(wchar_t));
+				if (tmp == NULL) {
+					free(buf2);
+					errno = ENOMEM;
+					goto exit_tmpfile;
+				}
+				p = buf2 = tmp;
+				l = GetTempPathW((DWORD)s, buf2);
+				if (l == 0) {
+					free(buf2);
+					la_dosmaperr(GetLastError());
+					goto exit_tmpfile;
+				}
 			}
-			GetTempPathW((DWORD)l, tmp);
-			archive_wstrcpy(&temp_name, tmp);
-			free(tmp);
+			archive_wstrcpy(&temp_name, p);
+			free(buf2);
 		} else {
 			if (archive_wstring_append_from_mbs(&temp_name, tmpdir,
 			    strlen(tmpdir)) < 0)
@@ -318,12 +322,6 @@ __archive_mktempx(const char *tmpdir, wchar_t *template)
 			abort();
 	}
 
-	if (!BCRYPT_SUCCESS(BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_RNG_ALGORITHM,
-		NULL, 0))) {
-		la_dosmaperr(GetLastError());
-		goto exit_tmpfile;
-	}
-
 	for (;;) {
 		wchar_t *p;
 		HANDLE h;
@@ -331,13 +329,10 @@ __archive_mktempx(const char *tmpdir, wchar_t *template)
 		CREATEFILE2_EXTENDED_PARAMETERS createExParams;
 #endif
 
-		/* Generate a random file name through CryptGenRandom(). */
+		/* Generate a random file name. */
 		p = xp;
-		if (!BCRYPT_SUCCESS(BCryptGenRandom(hAlg, (PUCHAR)p,
-		    (DWORD)(ep - p)*sizeof(wchar_t), 0))) {
-			la_dosmaperr(GetLastError());
+		if (archive_random(p, (ep - p)*sizeof(wchar_t)) != ARCHIVE_OK)
 			goto exit_tmpfile;
-		}
 		for (; p < ep; p++)
 			*p = num[((DWORD)*p) % (sizeof(num)/sizeof(num[0]))];
 
@@ -391,8 +386,6 @@ __archive_mktempx(const char *tmpdir, wchar_t *template)
 			break;/* success! */
 	}
 exit_tmpfile:
-	if (hAlg != NULL)
-		BCryptCloseAlgorithmProvider(hAlg, 0);
 	free(ws);
 	if (template == temp_name.s)
 		archive_wstring_free(&temp_name);

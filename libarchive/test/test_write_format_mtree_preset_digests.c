@@ -50,7 +50,12 @@ DEFINE_TEST(test_write_format_mtree_digests_no_digests_set_no_data)
 	size_t used = 0;
 	struct archive *a;
 	struct archive_entry *entry;
+
+#if defined(ARCHIVE_HAS_MD5) || defined(ARCHIVE_HAS_RMD160) \
+    || defined(ARCHIVE_HAS_SHA1) || defined(ARCHIVE_HAS_SHA256) \
+    || defined(ARCHIVE_HAS_SHA384) || defined(ARCHIVE_HAS_SHA512)
 	struct expected_digests ed;
+#endif
 
 #ifdef ARCHIVE_HAS_MD5
 	assertEqualInt(ARCHIVE_OK, archive_md5_init(&expectedMd5Ctx));
@@ -99,7 +104,7 @@ DEFINE_TEST(test_write_format_mtree_digests_no_digests_set_no_data)
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, entry));
 	archive_entry_free(entry);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
@@ -139,7 +144,12 @@ DEFINE_TEST(test_write_format_mtree_digests_no_digests_set_empty_data)
 	size_t used = 0;
 	struct archive *a;
 	struct archive_entry *entry;
+
+#if defined(ARCHIVE_HAS_MD5) || defined(ARCHIVE_HAS_RMD160) \
+    || defined(ARCHIVE_HAS_SHA1) || defined(ARCHIVE_HAS_SHA256) \
+    || defined(ARCHIVE_HAS_SHA384) || defined(ARCHIVE_HAS_SHA512)
 	struct expected_digests ed;
+#endif
 
 #ifdef ARCHIVE_HAS_MD5
 	assertEqualInt(ARCHIVE_OK, archive_md5_init(&expectedMd5Ctx));
@@ -189,7 +199,7 @@ DEFINE_TEST(test_write_format_mtree_digests_no_digests_set_empty_data)
 	archive_write_data(a, "", 0);
 	archive_entry_free(entry);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
@@ -229,8 +239,13 @@ DEFINE_TEST(test_write_format_mtree_digests_no_digests_set_non_empty_data)
 	size_t used = 0;
 	struct archive *a;
 	struct archive_entry *entry;
-	struct expected_digests ed;
 	char *data = "abcd";
+
+#if defined(ARCHIVE_HAS_MD5) || defined(ARCHIVE_HAS_RMD160) \
+    || defined(ARCHIVE_HAS_SHA1) || defined(ARCHIVE_HAS_SHA256) \
+    || defined(ARCHIVE_HAS_SHA384) || defined(ARCHIVE_HAS_SHA512)
+	struct expected_digests ed;
+#endif
 
 #ifdef ARCHIVE_HAS_MD5
 	assertEqualInt(ARCHIVE_OK, archive_md5_init(&expectedMd5Ctx));
@@ -280,7 +295,7 @@ DEFINE_TEST(test_write_format_mtree_digests_no_digests_set_non_empty_data)
 	archive_write_data(a, data, 4);
 	archive_entry_free(entry);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
@@ -370,7 +385,7 @@ DEFINE_TEST(test_write_format_mtree_digests_md5_digest_set_no_data)
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, entry));
 	archive_entry_free(entry);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
@@ -463,7 +478,7 @@ DEFINE_TEST(test_write_format_mtree_digests_md5_digest_set_empty_data)
 	archive_write_data(a, "", 0);
 	archive_entry_free(entry);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
@@ -562,7 +577,7 @@ DEFINE_TEST(test_write_format_mtree_digests_md5_digest_set_non_empty_data)
 	archive_write_data(a, "abcd", 4);
 	archive_entry_free(entry);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
@@ -658,7 +673,7 @@ DEFINE_TEST(test_write_format_mtree_digests_rmd160_digest_set_no_data)
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, entry));
 	archive_entry_free(entry);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
@@ -751,7 +766,7 @@ DEFINE_TEST(test_write_format_mtree_digests_rmd160_digest_set_empty_data)
 	archive_write_data(a, "", 0);
 	archive_entry_free(entry);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
@@ -850,7 +865,7 @@ DEFINE_TEST(test_write_format_mtree_digests_rmd160_digest_set_non_empty_data)
 	archive_write_data(a, "abcd", 4);
 	archive_entry_free(entry);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
@@ -948,7 +963,7 @@ DEFINE_TEST(test_write_format_mtree_digests_sha1_digest_set_no_data)
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, entry));
 	archive_entry_free(entry);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
@@ -1041,7 +1056,7 @@ DEFINE_TEST(test_write_format_mtree_digests_sha1_digest_set_empty_data)
 	archive_write_data(a, "", 0);
 	archive_entry_free(entry);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
@@ -1140,7 +1155,7 @@ DEFINE_TEST(test_write_format_mtree_digests_sha1_digest_set_non_empty_data)
 	archive_write_data(a, "abcd", 4);
 	archive_entry_free(entry);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
@@ -1240,7 +1255,7 @@ DEFINE_TEST(test_write_format_mtree_digests_sha256_digest_set_no_data)
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, entry));
 	archive_entry_free(entry);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
@@ -1335,7 +1350,7 @@ DEFINE_TEST(test_write_format_mtree_digests_sha256_digest_set_empty_data)
 	archive_write_data(a, "", 0);
 	archive_entry_free(entry);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
@@ -1436,7 +1451,7 @@ DEFINE_TEST(test_write_format_mtree_digests_sha256_digest_set_non_empty_data)
 	archive_write_data(a, "abcd", 4);
 	archive_entry_free(entry);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
@@ -1537,7 +1552,7 @@ DEFINE_TEST(test_write_format_mtree_digests_sha384_digest_set_no_data)
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, entry));
 	archive_entry_free(entry);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
@@ -1633,7 +1648,7 @@ DEFINE_TEST(test_write_format_mtree_digests_sha384_digest_set_empty_data)
 	archive_write_data(a, "", 0);
 	archive_entry_free(entry);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
@@ -1735,7 +1750,7 @@ DEFINE_TEST(test_write_format_mtree_digests_sha384_digest_set_non_empty_data)
 	archive_write_data(a, "abcd", 4);
 	archive_entry_free(entry);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
@@ -1838,7 +1853,7 @@ DEFINE_TEST(test_write_format_mtree_digests_sha512_digest_set_no_data)
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, entry));
 	archive_entry_free(entry);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
@@ -1937,7 +1952,7 @@ DEFINE_TEST(test_write_format_mtree_digests_sha512_digest_set_empty_data)
 	archive_write_data(a, "", 0);
 	archive_entry_free(entry);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
@@ -2042,7 +2057,7 @@ DEFINE_TEST(test_write_format_mtree_digests_sha512_digest_set_non_empty_data)
 	archive_write_data(a, "abcd", 4);
 	archive_entry_free(entry);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));

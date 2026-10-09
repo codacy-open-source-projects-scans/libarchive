@@ -66,6 +66,7 @@
 
 #include "cpio.h"
 #include "lafe_err.h"
+#include "lafe_explicit_bzero.h"
 #include "line_reader.h"
 #include "passphrase.h"
 
@@ -87,7 +88,6 @@ struct name_cache {
 };
 
 static int	extract_data(struct archive *, struct archive *);
-const char *	cpio_i64toa(int64_t);
 static void	cpio_rename(struct archive_entry *);
 static int	entry_to_archive(struct cpio *, struct archive_entry *);
 static int	file_to_archive(struct cpio *, const char *);
@@ -409,6 +409,10 @@ main(int argc, char *argv[])
 			else
 				cpio->format = "cpio";
 		}
+		if (cpio->argc > 0)
+			lafe_errc(1, 0,
+			    "Too many arguments for -o mode (got %d, expected 0)",
+			    cpio->argc);
 		mode_out(cpio);
 		break;
 	case 'i':
@@ -429,6 +433,10 @@ main(int argc, char *argv[])
 		if (*cpio->argv == NULL || **cpio->argv == '\0')
 			lafe_errc(1, 0,
 			    "-p mode requires a target directory");
+		if (cpio->argc > 1)
+			lafe_errc(1, 0,
+			    "Too many arguments for -p mode (got %d, expected 1)",
+			    cpio->argc);
 		mode_pass(cpio, *cpio->argv);
 		break;
 	default:
@@ -728,12 +736,16 @@ file_to_archive(struct cpio *cpio, const char *srcpath)
 		return (r);
 	}
 
-	if (cpio->uid_override >= 0)
+	if (cpio->uid_override >= 0) {
 		archive_entry_set_uid(entry, cpio->uid_override);
+		archive_entry_set_uname(entry, NULL);
+	}
 	if (cpio->uname_override != NULL)
 		archive_entry_set_uname(entry, cpio->uname_override);
-	if (cpio->gid_override >= 0)
+	if (cpio->gid_override >= 0) {
 		archive_entry_set_gid(entry, cpio->gid_override);
+		archive_entry_set_gname(entry, NULL);
+	}
 	if (cpio->gname_override != NULL)
 		archive_entry_set_gname(entry, cpio->gname_override);
 
@@ -842,7 +854,11 @@ entry_to_archive(struct cpio *cpio, struct archive_entry *entry)
 			lafe_warnc(0, "Copying file instead");
 		} else
 #endif
-		return (0);
+		{
+			if (r != ARCHIVE_OK)
+				cpio->return_value = 1;
+			return (0);
+		}
 	}
 
 	/*
@@ -1002,7 +1018,10 @@ mode_in(struct cpio *cpio)
 			lafe_errc(1, archive_errno(a),
 			    "%s", archive_error_string(a));
 		}
-		if (archive_match_path_excluded(cpio->matching, entry))
+		r = archive_match_path_excluded(cpio->matching, entry);
+		if (r < 0)
+			lafe_errc(1, 0, "%s", archive_error_string(cpio->matching));
+		if (r)
 			continue;
 		if (cpio->option_rename)
 			cpio_rename(entry);
@@ -1117,7 +1136,10 @@ mode_list(struct cpio *cpio)
 			lafe_errc(1, archive_errno(a),
 			    "%s", archive_error_string(a));
 		}
-		if (archive_match_path_excluded(cpio->matching, entry))
+		r = archive_match_path_excluded(cpio->matching, entry);
+		if (r < 0)
+			lafe_errc(1, 0, "%s", archive_error_string(cpio->matching));
+		if (r)
 			continue;
 		if (cpio->verbose)
 			list_item_verbose(cpio, entry);
@@ -1154,6 +1176,7 @@ list_item_verbose(struct cpio *cpio, struct archive_entry *entry)
 	const char 		*uname, *gname;
 	FILE			*out = stdout;
 	const char		*fmt;
+	double			 age;
 	time_t			 mtime;
 	static time_t		 now;
 	struct tm		*ltime;
@@ -1166,9 +1189,11 @@ list_item_verbose(struct cpio *cpio, struct archive_entry *entry)
 
 	if (cpio->option_numeric_uid_gid) {
 		/* Format numeric uid/gid for display. */
-		strcpy(uids, cpio_i64toa(archive_entry_uid(entry)));
+		snprintf(uids, sizeof(uids), "%lld",
+		    (long long)archive_entry_uid(entry));
 		uname = uids;
-		strcpy(gids, cpio_i64toa(archive_entry_gid(entry)));
+		snprintf(gids, sizeof(gids), "%lld",
+		    (long long)archive_entry_gid(entry));
 		gname = gids;
 	} else {
 		/* Use uname if it's present, else lookup name from uid. */
@@ -1188,21 +1213,21 @@ list_item_verbose(struct cpio *cpio, struct archive_entry *entry)
 		    (unsigned long)archive_entry_rdevmajor(entry),
 		    (unsigned long)archive_entry_rdevminor(entry));
 	} else {
-		strcpy(size, cpio_i64toa(archive_entry_size(entry)));
+		snprintf(size, sizeof(size), "%lld",
+		    (long long)archive_entry_size(entry));
 	}
 
 	/* Format the time using 'ls -l' conventions. */
 	mtime = archive_entry_mtime(entry);
+	age = difftime(mtime, now);
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	/* Windows' strftime function does not support %e format. */
-	if (mtime - now > 365*86400/2
-		|| mtime - now < -365*86400/2)
+	if (age > 365.0 * 86400 / 2 || age < -365.0 * 86400 / 2)
 		fmt = cpio->day_first ? "%d %b  %Y" : "%b %d  %Y";
 	else
 		fmt = cpio->day_first ? "%d %b %H:%M" : "%b %d %H:%M";
 #else
-	if (mtime - now > 365*86400/2
-		|| mtime - now < -365*86400/2)
+	if (age > 365.0 * 86400 / 2 || age < -365.0 * 86400 / 2)
 		fmt = cpio->day_first ? "%e %b  %Y" : "%b %e  %Y";
 	else
 		fmt = cpio->day_first ? "%e %b %H:%M" : "%b %e %H:%M";
@@ -1436,8 +1461,8 @@ lookup_uname_helper(struct cpio *cpio, const char **name, id_t id)
 	pwent = getpwuid((uid_t)id);
 	if (pwent == NULL) {
 		if (errno && errno != ENOENT)
-			lafe_warnc(errno, "getpwuid(%s) failed",
-			    cpio_i64toa((int64_t)id));
+			lafe_warnc(errno, "getpwuid(%lld) failed",
+			    (long long)id);
 		return 1;
 	}
 
@@ -1463,38 +1488,13 @@ lookup_gname_helper(struct cpio *cpio, const char **name, id_t id)
 	grent = getgrgid((gid_t)id);
 	if (grent == NULL) {
 		if (errno && errno != ENOENT)
-			lafe_warnc(errno, "getgrgid(%s) failed",
-			    cpio_i64toa((int64_t)id));
+			lafe_warnc(errno, "getgrgid(%lld) failed",
+			    (long long)id);
 		return 1;
 	}
 
 	*name = grent->gr_name;
 	return 0;
-}
-
-/*
- * It would be nice to just use printf() for formatting large numbers,
- * but the compatibility problems are a big headache.  Hence the
- * following simple utility function.
- */
-const char *
-cpio_i64toa(int64_t n0)
-{
-	/* 2^64 =~ 1.8 * 10^19, so 20 decimal digits suffice.
-	 * We also need 1 byte for '-' and 1 for '\0'.
-	 */
-	static char buff[22];
-	int64_t n = n0 < 0 ? -n0 : n0;
-	char *p = buff + sizeof(buff);
-
-	*--p = '\0';
-	do {
-		*--p = '0' + (int)(n % 10);
-		n /= 10;
-	} while (n > 0);
-	if (n0 < 0)
-		*--p = '-';
-	return p;
 }
 
 #define PPBUFF_SIZE 1024
@@ -1517,7 +1517,7 @@ static void
 passphrase_free(char *ppbuff)
 {
 	if (ppbuff != NULL) {
-		memset(ppbuff, 0, PPBUFF_SIZE);
+		explicit_bzero(ppbuff, PPBUFF_SIZE);
 		free(ppbuff);
 	}
 }

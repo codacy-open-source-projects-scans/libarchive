@@ -98,6 +98,7 @@ libarchive_src_files := libarchive/archive_acl.c \
 						libarchive/archive_string.c \
 						libarchive/archive_string_sprintf.c \
 						libarchive/archive_time.c \
+						libarchive/archive_umask.c \
 						libarchive/archive_util.c \
 						libarchive/archive_version_details.c \
 						libarchive/archive_virtual.c \
@@ -159,6 +160,7 @@ libarchive_host_src_files :=
 endif
 
 libarchive_fe_src_files :=  libarchive_fe/lafe_err.c \
+							libarchive_fe/lafe_fnmatch.c \
 							libarchive_fe/lafe_getline.c \
 							libarchive_fe/line_reader.c \
 							libarchive_fe/passphrase.c

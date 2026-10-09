@@ -204,6 +204,7 @@ __LA_DECL const char *  archive_liblzo2_version(void);
 __LA_DECL const char *  archive_libexpat_version(void);
 __LA_DECL const char *  archive_libbsdxml_version(void);
 __LA_DECL const char *  archive_libxml2_version(void);
+__LA_DECL const char *  archive_xmllite_version(void);
 __LA_DECL const char *  archive_mbedtls_version(void);
 __LA_DECL const char *  archive_nettle_version(void);
 __LA_DECL const char *  archive_openssl_version(void);
@@ -273,7 +274,8 @@ typedef la_int64_t	archive_skip_callback(struct archive *,
 
 /* Seeks to specified location in the file and returns the position.
  * Whence values are SEEK_SET, SEEK_CUR, SEEK_END from stdio.h.
- * Return ARCHIVE_FATAL if the seek fails for any reason.
+ * Return ARCHIVE_FAILED if the seek failed in a way that keeps its
+ * current read position, ARCHIVE_FATAL for any other error reason.
  */
 typedef la_int64_t	archive_seek_callback(struct archive *,
     void *_client_data, la_int64_t offset, int whence);
@@ -647,7 +649,7 @@ __LA_DECL la_int64_t archive_seek_data(struct archive *, la_int64_t, int);
  * A zero-copy version of archive_read_data that also exposes the file offset
  * of each returned block.  Note that the client has no way to specify
  * the desired size of the block.  The API does guarantee that offsets will
- * be strictly increasing and that returned blocks will not overlap.
+ * be increasing and that returned blocks will not overlap.
  */
 __LA_DECL int archive_read_data_block(struct archive *a,
 		    const void **buff, size_t *size, la_int64_t *offset);
@@ -655,7 +657,6 @@ __LA_DECL int archive_read_data_block(struct archive *a,
 /*-
  * Some convenience functions that are built on archive_read_data:
  *  'skip': skips entire entry
- *  'into_buffer': writes data into memory buffer that you provide
  *  'into_fd': writes data to specified filedes
  */
 __LA_DECL int archive_read_data_skip(struct archive *);
@@ -1236,7 +1237,7 @@ __LA_DECL int	archive_match_exclude_entry(struct archive *,
 		    int _flag, struct archive_entry *);
 
 /*
- * Test if a file is excluded by its uid ,gid, uname or gname.
+ * Test if a file is excluded by its uid, gid, uname or gname.
  * The conditions are set by following functions.
  */
 __LA_DECL int	archive_match_owner_excluded(struct archive *,

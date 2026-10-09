@@ -84,6 +84,7 @@
 #include "archive_string.h"
 #include "archive_cryptor_private.h"
 #include "archive_digest_private.h"
+#include "archive_xml_private.h"
 
 static void
 archive_regex_version(struct archive_string* str)
@@ -102,13 +103,16 @@ archive_regex_version(struct archive_string* str)
 static void
 archive_xml_version(struct archive_string* str)
 {
-#if HAVE_LIBXML_XMLVERSION_H && HAVE_LIBXML2
+#if defined(ARCHIVE_XML_USE_XML2)
 	archive_strcat(str, " libxml2/");
 	archive_strcat(str, archive_libxml2_version());
-#elif HAVE_BSDXML_H && HAVE_LIBBSDXML
+#elif defined(ARCHIVE_XML_USE_XMLLITE)
+	archive_strcat(str, " xmllite/");
+	archive_strcat(str, archive_xmllite_version());
+#elif defined(ARCHIVE_XML_USE_BSDXML)
 	archive_strcat(str, " bsdxml/");
 	archive_strcat(str, archive_libbsdxml_version());
-#elif HAVE_EXPAT_H && HAVE_LIBEXPAT
+#elif defined(ARCHIVE_XML_USE_EXPAT)
 	archive_strcat(str, " expat/");
 	archive_strcat(str, archive_libexpat_version());
 #else
@@ -176,7 +180,7 @@ archive_version_details(void)
 	const char *libiconv = archive_libiconv_version();
 	const char *libacl = archive_libacl_version();
 	const char *librichacl = archive_librichacl_version();
-	const char *libattr = archive_libacl_version();
+	const char *libattr = archive_libattr_version();
 
 	if (!init) {
 		archive_string_init(&str);
@@ -230,6 +234,7 @@ archive_version_details(void)
 			archive_strcat(&str, " libiconv/");
 			archive_strcat(&str, libiconv);
 		}
+		init = 1;
 	}
 	return str.s;
 }
@@ -319,7 +324,7 @@ archive_liblzo2_version(void)
 const char *
 archive_libbsdxml_version(void)
 {
-#if HAVE_BSDXML_H && HAVE_LIBBSDXML
+#if defined(ARCHIVE_XML_USE_BSDXML)
 	return XML_ExpatVersion();
 #else
 	return NULL;
@@ -329,7 +334,7 @@ archive_libbsdxml_version(void)
 const char *
 archive_libxml2_version(void)
 {
-#if HAVE_LIBXML_XMLVERSION_H && HAVE_LIBXML2
+#if defined(ARCHIVE_XML_USE_XML2)
 	return LIBXML_DOTTED_VERSION;
 #else
 	return NULL;
@@ -339,8 +344,18 @@ archive_libxml2_version(void)
 const char *
 archive_libexpat_version(void)
 {
-#if HAVE_EXPAT_H && HAVE_LIBEXPAT
+#if defined(ARCHIVE_XML_USE_EXPAT)
 	return XML_ExpatVersion();
+#else
+	return NULL;
+#endif
+}
+
+const char *
+archive_xmllite_version(void)
+{
+#if defined(ARCHIVE_XML_USE_XMLLITE)
+	return "system";
 #else
 	return NULL;
 #endif
